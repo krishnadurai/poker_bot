@@ -6,9 +6,6 @@ import thread
 from Queue import *
 import time
 import threading
-import pygbutton
-import platform
-from pgu import gui
 
 #Socket to receive data
 DEALER_SERVER = '192.168.117.112'
@@ -215,52 +212,12 @@ bg = "images/back.png"
 
 
 
-#Slider class
-class bet_bar(gui.Table):
-    def __init__(self,**params):
-        self.value = range(100)
-        gui.Table.__init__(self,**params)
-        fg = (255,255,255)
-
-        self.tr()
-        self.td(gui.Label("Bet / Raise",color=fg),colspan=2)
-
-        self.tr()
-        self.td(gui.Label("Amount: ",color=fg),align=1)
-        e = gui.HSlider(0,0,1000,size=10,width=500,height=16,name='amount')
-        e.connect(gui.CHANGE,self.adjust,(0,e))
-        self.td(e)
-    def adjust(self,value):
-        (num, slider) = value
-        self.value[num] = slider.value
-        amt_min = max(poker_data.last_raised_amt + poker_data.last_raised_by, poker_data.small_blind_amt*2)
-        amt_max = poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]
-        if amt_min > amt_max and amt_max > poker_data.last_raised_amt:
-            poker_data.bet_amount = amt_max
-        else:
-            poker_data.bet_amount = int(slider.value)/1000. * (amt_max-amt_min) + amt_min
-            poker_data.bet_amount = int(poker_data.bet_amount)
-
-app = gui.App()
-betBar = bet_bar()
-
-c = gui.Container(align=-1,valign=-1)
-c.add(betBar,50,460)
-
-pygame.init()
-app.init(c)
-
 screen = pygame.display.set_mode((SCREEN_X, SCREEN_Y), 0, 32)
 screen.fill((28, 28, 30))
 pygame.display.set_caption("Poker Project")
 icon = pygame.image.load("images/icon.png").convert()
-button_fold = pygbutton.PygButton((50, 420, 100, 30), 'FOLD')
-button_call = pygbutton.PygButton((280, 420, 150, 30), 'CALL / CHECK')
-button_raise = pygbutton.PygButton((550, 420, 150, 30), 'BET / RAISE')
-button_turn = pygbutton.PygButton((50, 20, 100, 30), 'Your Turn')
 current_player_image = pygame.image.load("images/current_player").convert()
 small_blind_image = pygame.image.load("images/sb.png").convert()
-#button = pygame.image.load("images/button").convert()
 pygame.display.set_icon(icon)
 back = pygame.image.load(bg).convert()
 screen = pygame.display.get_surface()
@@ -268,6 +225,7 @@ clock = pygame.time.Clock()
 
 
 while True:
+    pygame.font.init()
     font = pygame.font.Font(None, 24)
     hc_images = [pygame.image.load(poker_data.hand_cards[0]).convert(),
                  pygame.image.load(poker_data.hand_cards[1]).convert()]
@@ -284,40 +242,14 @@ while True:
                            .convert())
     clock.tick(10)
     for event in pygame.event.get():
-        fold_events = button_fold.handleEvent(event)
-        call_events = button_call.handleEvent(event)
-        raise_events = button_raise.handleEvent(event)
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
-    '''
-        elif 'click' in fold_events:
-            print 'Fold button clicked'
-            poker_data.hand_cards[0] = 'images/front'
-            poker_data.hand_cards[1] = 'images/front'
-            thread.start_new_thread(send_data, ('req=fold:',))
-            break
-        elif 'click' in call_events:
-            print 'CALL button clicked'
-            if poker_data.current_player == poker_data.mypos:
-                print 'attempting to send data'
-                thread.start_new_thread(send_data, ('req=call:amt='+str(min(poker_data.last_raised_amt, (poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]))),))
-                break
-        elif 'click' in raise_events:
-            print 'RAISE button clicked'
-            if poker_data.current_player == poker_data.mypos:
-                print 'attempting to send data'
-                slider_value = str(poker_data.bet_amount)
-                thread.start_new_thread(send_data, ('req=raiseTO:amt='+str(poker_data.bet_amount),))
-                break
-        elif event.type is KEYDOWN and event.key == K_ESCAPE:
-            pass
-        else:
-            app.event(event)
-'''
-
-    if poker_data.current_player == poker_data.mypos:
+    # Test
+    if poker_data.current_player == poker_data.mypos and poker_data.hand_cards[0] != 'images/front':
         thread.start_new_thread(send_data, ('req=call:amt='+str(min(poker_data.last_raised_amt, (poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]))),))
+        poker_data.current_player = -1
+
     screen.blit(back, (0, 0))
     screen.blit(hc_images[0], (pos[0][0], pos[0][1]))
     screen.blit(hc_images[1], (pos[0][0] + 72, pos[0][1]))
@@ -350,46 +282,14 @@ while True:
             screen.blit(bet_money_text, bet_money_textpos)
         j += 1
         j %= 8
-    '''
-    screen.blit(button, (50, 450))
-    fold = font.render("FOLD", 1, (255, 0, 0))
-    screen.blit(fold, (75, 465))
-    screen.blit(button, (280, 450))
-    call = font.render("CALL/", 1, (255, 0, 0))
-    screen.blit(call, (305, 455))
-    check = font.render("CHECK", 1, (255, 0, 0))
-    screen.blit(check, (305, 475))
-    screen.blit(button, (510, 450))
-    rise = font.render("RAISE", 1, (255, 0, 0))
-    screen.blit(check, (535, 465))
-    '''
-    button_turn.visible = False
-    button_call.visible = False
-    button_raise.visible = False
-    button_fold.visible = False
-    if poker_data.mypos == poker_data.current_player:
-        button_turn.visible = True
-        button_call.visible = True
-        if poker_data.last_raised_amt < poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]:
-            button_raise.visible = True
-        button_fold.visible = True
-    button_call.draw(screen)
-    button_raise.draw(screen)
-    button_fold.draw(screen)
-    button_turn.draw(screen)
+
     sb = 8 + poker_data.small_blind - poker_data.mypos
     sb %= 8
     screen.blit(small_blind_image, (pos[sb][0]- 30, pos[sb][1]))
     cp = 8 + poker_data.current_player - poker_data.mypos
     cp %= 8
     screen.blit(current_player_image, (pos[cp][0]-16, pos[cp][1] + 20))
-    if poker_data.mypos == poker_data.current_player:
-        call_text = font.render('$ '+str(min(poker_data.last_raised_amt, (poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]))), 1, (255, 255, 255))
-        screen.blit(call_text, (450, 425))
-        if poker_data.last_raised_amt < poker_data.remaining_money[poker_data.mypos] + poker_data.money_in_pot[poker_data.mypos]:
-            app.paint()
-            bet_text = font.render('$ '+str(poker_data.bet_amount), 1, (255, 255, 255))
-            screen.blit(bet_text, (700, 480))
+
     for i in range(poker_data.no_of_pots):
         pot_text = font.render('Pot ' + str(i + 1) + ' $ '+str(poker_data.pot_money[i]), 1, (255, 255, 255))
         screen.blit(pot_text, (800, (i * 40) + 20))
